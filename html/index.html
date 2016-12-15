@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Snore Alarm</title>
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.5.3.min.js"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+<style>
+
+.controls {
+  text-align: center;
+  font: 0.8em 'Andale Mono', Consolas, 'Courier New';
+  font-size: 0.85em;
+}
+
+.logo {
+  text-align: center;
+  font: 0.8em 'Andale Mono', Consolas, 'Courier New';
+  font-size: 0.85em;
+}
+
+.user-Main {
+  text-align: left;
+  font: 0.8em 'Andale Mono', Consolas, 'Courier New';
+  font-size: 0.85em;
+  #background: #F2F4F4;
+}
+
+.shell-top-bar {
+  text-align: left;
+  color: #525252;
+  padding: 5px 5px 5px 5px;
+  margin: 0;
+  #text-shadow: 1px 1px 0 rgba(255,255,255,0.5);
+  font: 0.8em 'Andale Mono', Consolas, 'Courier New';
+  font-size: 0.85em;
+  border: 1px solid #CCCCCC;
+  border-bottom: none;
+ 
+  -webkit-border-top-left-radius: 3px;
+  -webkit-border-top-right-radius: 3px;
+  -moz-border-radius-topleft: 3px;
+  -moz-border-radius-topright: 3px;
+  border-top-left-radius: 3px;
+  border-top-right-radius: 3px;
+ 
+  background: #f7f7f7; /* Old browsers */
+  background: -moz-linear-gradient(top,  #f7f7f7 0%, #B8B8B8 100%); /* FF3.6+ */
+  background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#f7f7f7), color-stop(100%,#B8B8B8)); /* Chrome,Safari4+ */
+  background: -webkit-linear-gradient(top,  #f7f7f7 0%,#B8B8B8 100%); /* Chrome10+,Safari5.1+ */
+  background: -o-linear-gradient(top,  #f7f7f7 0%,#B8B8B8 100%); /* Opera 11.10+ */
+  background: -ms-linear-gradient(top,  #f7f7f7 0%,#B8B8B8 100%); /* IE10+ */
+  background: linear-gradient(to bottom,  #f7f7f7 0%,#B8B8B8 100%); /* W3C */
+  filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#f7f7f7', endColorstr='#B8B8B8',GradientType=0 ); /* IE6-9 */
+}
+
+.shell-body {
+  margin: 0;
+  padding: 5px;
+  list-style: none;
+  background: #141414;
+  color: #45D40C;
+  font: 0.8em 'Andale Mono', Consolas, 'Courier New';
+  line-height: 1.6em;
+ 
+  -webkit-border-bottom-right-radius: 3px;
+  -webkit-border-bottom-left-radius: 3px;
+  -moz-border-radius-bottomright: 3px;
+  -moz-border-radius-bottomleft: 3px;
+  border-bottom-right-radius: 3px;
+  border-bottom-left-radius: 3px;
+}
+ 
+.shell-body li:before {
+  content: '$';
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+ 
+.shell-body li {
+  word-wrap: break-word;
+  position: relative;
+  padding: 0 0 0 15px;
+}
+
+h4 {
+	font-family: "brandon-grotesque", "Brandon Grotesque", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    #line-height: 1.1;
+    font-size: 1.25em;
+    padding: 5px 0px 0px 5px;
+    -webkit-margin-after: 0.2em;
+}
+
+</style>
+</head>
+<body>
+
+<div id="amazon-root" ></div>
+
+<div id="logodiv" class="logo">
+	<img id="logo" src="logo.png" width="" height="">
+	<h1>Snore Alarm</h1>
+</div>
+
+
+	
+<div id="login" class="controls" style="display:block">
+	<a href="#" id="LoginWithAmazon">
+	<img border="0" alt="Login with Amazon" src="https://images-na.ssl-images-amazon.com/images/G/01/lwa/btnLWA_gold_76x32.png" /></a>
+</div>
+
+<br/>
+
+<div id="controls" class="controls" style="display:none">
+	<!-- <a href="#" id="LoginWithAmazon">Login With Amazon</a> | -->
+	<a href="#" id="Logout">Logout</a> | 
+	<a href="#" id="ReadDB">Show snoring history</a> |
+	<a href="#" id="showDebug">Show / Hide Debug Console</a>
+	<!-- | <a href="#" id="ListBucket">List bucket</a>-->
+	<br/><br/>
+</div>
+
+<div id="userMain" class="user-Main"></div><br/>
+
+<!-- The charts div -->
+<div id="chart_div" style="display:none;" style="height: 300px; min-width: 600px; max-width: 960px;"></div>
+
+	
+<div id="debug" style="display:none;" class="shell-top-bar">
+	<span>Debug Console</span><br/>
+<!--</div>-->
+	
+<div id="output" class="shell-body"></div>
+
+<script type="text/javascript">
+	
+	//	-------------------------------
+	//	Internal non-AWS functions
+	//	-------------------------------
+	
+	//var S3Root = '"https://s3.amazonaws.com/aws-iot-snorealarm';
+	
+	clientId = '00000001';
+	
+	function printToUser (str) {
+		var mydiv = document.getElementById("userMain");
+		var newcontent = document.createElement('span');
+		newcontent.innerHTML =  str + '<br/>';
+	
+		while (newcontent.firstChild) {
+			mydiv.appendChild(newcontent.firstChild);
+		}
+		
+	}// userOutput
+	
+	function debugOutput (str) {
+	    		
+		var currentdate = new Date(); 
+		var datetime = currentdate.getDate() + "/"
+                + (currentdate.getMonth()+1)  + "/" 
+                + currentdate.getFullYear() + " "  
+                + currentdate.getHours() + ":"  
+                + currentdate.getMinutes() + ":" 
+                + currentdate.getSeconds();
+		
+		//	Append debug div with str
+		var mydiv = document.getElementById("output");
+		var newcontent = document.createElement('span');
+		newcontent.innerHTML = '<br/>' + datetime + ' ' + str;
+
+		while (newcontent.firstChild) {
+			mydiv.appendChild(newcontent.firstChild);
+		}
+	}// debugOutput
+	
+	//	Capture all errors and pass to debugOutput()
+	window.onerror = function(error, url, line) {
+		debugOutput('Error: ' + error + ' at line:' + line + ' in url:' + url);
+	};
+	
+	//	Format the audio HTML string
+	function formatAudioHTML (filename){
+		return '<audio controls="true" autoplay="true"><source src="' + S3Root + '//' + filename + '" /></audio>'
+	}//formatAudioHTML
+	
+</script>
+
+</div><!-- End of debug div -->
+</div><!-- Enf of output div -->
+
+<script type="text/javascript">
+
+//	-------------------------------
+//	Google Chart functions
+//	-------------------------------
+
+//	Initialise the jsonData structure
+jsonData = {
+  "cols": [
+        {"id":"","label":"Topping","pattern":"","type":"string"},
+        {"id":"","label":"Seconds","pattern":"","type":"number"}
+      ],
+  "rows": [
+        {"c":[{"v":"0:00","f":null},{"v":0,"f":null}]},
+        {"c":[{"v":"1:00","f":null},{"v":1,"f":null}]},
+        {"c":[{"v":"2:00","f":null},{"v":2,"f":null}]},
+        {"c":[{"v":"3:00","f":null},{"v":3,"f":null}]},
+        {"c":[{"v":"4:00","f":null},{"v":4,"f":null}]},
+        {"c":[{"v":"5:00","f":null},{"v":5,"f":null}]},
+        {"c":[{"v":"6:00","f":null},{"v":0,"f":null}]},
+        {"c":[{"v":"7:00","f":null},{"v":0,"f":null}]},
+        {"c":[{"v":"8:00","f":null},{"v":0,"f":null}]},
+        {"c":[{"v":"9:00","f":null},{"v":0,"f":null}]} ,       
+        {"c":[{"v":"10:00","f":null},{"v":0,"f":null}]},
+        {"c":[{"v":"11:00","f":null},{"v":0,"f":null}]},
+        {"c":[{"v":"12:00","f":null},{"v":0,"f":null}]},
+        {"c":[{"v":"13:00","f":null},{"v":0,"f":null}]},
+        {"c":[{"v":"14:00","f":null},{"v":0,"f":null}]},
+        {"c":[{"v":"15:00","f":null},{"v":0,"f":null}]},
+        {"c":[{"v":"16:00","f":null},{"v":0,"f":null}]},
+        {"c":[{"v":"17:00","f":null},{"v":0,"f":null}]},
+        {"c":[{"v":"18:00","f":null},{"v":0,"f":null}]},
+        {"c":[{"v":"19:00","f":null},{"v":0,"f":null}]}, 
+        {"c":[{"v":"20:00","f":null},{"v":0,"f":null}]},
+        {"c":[{"v":"21:00","f":null},{"v":0,"f":null}]},
+        {"c":[{"v":"22:00","f":null},{"v":0,"f":null}]},
+        {"c":[{"v":"23:00","f":null},{"v":0,"f":null}]}
+      ]
+};
+
+//	Example of updating the jsonData
+//	It cycles through the hours and adds a random number
+//	Where 'count' would represent the hour in the chart
+//	E.G. if rows[4] was updated, this would update 4am on the chart
+var count;
+for (count=0; count<=23; count++) {
+	//	Generate a random number to test
+	rnd = Math.floor(Math.random() * 300) + 1
+	jsonData.rows[count].c[1].v = rnd;
+	
+}
+
+// Load the Visualization API and the corechart package.
+google.charts.load('current', {'packages':['corechart']});
+
+// Set a callback to run when the Google Visualization API is loaded.
+google.charts.setOnLoadCallback(drawChart);
+
+// Callback that creates and populates a data table,
+// instantiates the chart, passes in the data and
+// draws it.
+function drawChart() {
+
+	//	Create the data table using a json input
+	var data = new google.visualization.DataTable(jsonData);
+
+    // Create the data table manually
+    //var data = new google.visualization.DataTable();
+    //data.addColumn('string', 'Snores');
+    //data.addColumn('number', 'Duration');
+    //data.addRows([
+    //['20:19:52', 3],
+    //['20:19:52', 1],
+    //['20:19:52', 1],
+    //['20:19:52', 1],
+    //['20:19:52', 2]
+    //]);
+
+    // Set chart options
+    var options = {
+    			vAxis: { textPosition: 'none', title: '' },
+    			'title':'Snore Times / Durations',
+               	'width':600,
+               	'height':200,
+               	'legend': { position: "none" }
+	           	};
+
+    // Instantiate and draw our chart, passing in some options.
+    var chart = new google.visualization.ColumnChart(document.getElementById('chart_div'));
+    chart.draw(data, options);
+    
+}// drawChart
+      	      	
+</script>
+
+
+<script type="text/javascript">
+  
+//	------------------------
+//	AWS Functions
+//	------------------------
+var roleArn = 'arn:aws:iam::413311340389:role/iot-dynamodb';
+var providerId = 'www.amazon.com'
+var webIdentityToken = ''
+AWS.config.region = 'us-east-1';
+		
+//debugOutput('roleARN:' + roleArn);
+debugOutput('Region:' + AWS.config.region);
+debugOutput('clientId:' + clientId);
+
+//	------------------------
+// Login with Amazon
+//	------------------------
+window.onAmazonLoginReady = function() {
+	//debugOutput('Setting Client ID');
+	amazon.Login.setClientId('amzn1.application-oa2-client.3ee1a44854d94737aefcc3b93a2495f3');
+	};
+    
+	(function(d) {
+        var a = d.createElement('script'); a.type = 'text/javascript';
+        a.async = true; a.id = 'amazon-login-sdk'; 
+        a.src = 'https://api-cdn.amazon.com/sdk/login1.js?v=3';
+        d.getElementById('amazon-root').appendChild(a);
+    })(document);
+
+    function amazonAuth(response) {
+        debugOutput('Got response');
+		if (response.error) {
+            console.log(response.error);
+			debugOutput('Error: ' + response.error);
+            return;
+        } 
+		
+		webIdentityToken = response.access_token;
+		
+		AWS.config.credentials = new AWS.WebIdentityCredentials({
+            RoleArn: roleArn,
+            ProviderId: 'www.amazon.com',
+            WebIdentityToken: response.access_token
+        });
+		
+        amazon.Login.retrieveProfile(response.access_token, function() {
+            //printToUser("Login successful");
+			debugOutput("Logged in OK");
+			
+			profileData = JSON.stringify(response, null, 2);
+			debugOutput("Profile Data:" + profileData);
+			
+			//	Reduce size of logo
+			imgLogo = document.getElementById('logo');
+			imgLogo.style.width = '200px';
+			imgLogo.style.height = '300px';
+			//	Hide login button
+			document.getElementById('login').style.display = 'none';
+			//	Show control menu
+			document.getElementById('controls').style.display = 'block';
+			//debugOutput("UserID:" + response.authResponse.userID);
+        });
+    }//	end amazonAuth()
+
+	//	------------------------
+	//	Handlers for link clicks
+	//	------------------------
+	
+	
+	// Show/hide debug console
+    document.getElementById('showDebug').onclick = function() {
+ 		if (document.getElementById('debug').style.display == 'block') {
+ 			document.getElementById('debug').style.display = 'none';
+ 		} else {
+ 			document.getElementById('debug').style.display = 'block';
+ 		}
+ 		//debugOutput('Debug Console State:' + document.getElementById('debug').style.display);
+ 		
+    };
+	
+	// Login when you click the Login button
+    document.getElementById('LoginWithAmazon').onclick = function() {
+        options = { scope : 'profile' };
+		debugOutput('Attempting login');
+        amazon.Login.authorize(options, amazonAuth); // This calls the amazonAuth function as a callback
+    };
+	
+	// Logout when you click the Logout link
+    document.getElementById('Logout').onclick = function() {
+        debugOutput('Logging out');
+		amazon.Login.logout();
+		//	Show login button
+		document.getElementById('login').style.display = 'block';
+		location.reload();
+    };
+
+/*
+
+	// List S3 Bucket Contents
+    document.getElementById('ListBucket').onclick = function() {
+        
+        if (! AWS.config.credentials || AWS.config.credentials.params.WebIdentityToken == '') {
+        	debugOutput('Please login first');
+        	return;
+        }
+        
+        debugOutput('Listing bucket');
+		
+		var bucket = new AWS.S3({params: {Bucket: 'aws-iot-snorealarm'}});
+		bucket.listObjects(function (err, data) {
+		//	Clear the userMain div
+		document.getElementById("userMain").innerHTML = 'Please check the output in the Debug Console';
+		
+			if (err) {
+				debugOutput('Could not load objects from S3: ' + err);
+			} else {
+				debugOutput('Loaded ' + data.Contents.length + ' items from S3');
+				//printToUser('Loaded ' + data.Contents.length + ' items from S3');
+				for (var i = 0; i < data.Contents.length; i++) {
+					debugOutput(data.Contents[i].Key);
+				}
+			}
+		});
+  		
+    }; // List S3 bucket
+
+*/
+	//	Read from DynamoDB when you click the db link
+	document.getElementById('ReadDB').onclick = function() {
+		
+		if (! AWS.config.credentials || AWS.config.credentials.params.WebIdentityToken == '') {
+        	debugOutput('Please login first');
+        	return;
+        }
+
+        debugOutput('Getting data from DB....');
+		
+		//	List tables
+		//var db = new AWS.DynamoDB();
+		//db.listTables(function(err, data) {
+		//	if (err) {
+		//		debugOutput('Could not list tables: ' + err);
+		//	} else {
+		//		debugOutput('Found tables:' + data.TableNames);
+		//	}
+		//}); // db.listTables
+		
+		var docClient = new AWS.DynamoDB.DocumentClient();
+
+		//	Get data by Hash and Range key values
+		//var params = {
+		//	TableName: 'SnoreAlarm',
+		//	Key:{
+		//		"clientid": '00000001',
+		//		"date": '2016-08-20'
+		//	}
+		//}
+
+		//docClient.get(params, function(err, data) {
+		//	if (err) {
+		//		debugOutput('Could not read item: ' + err);
+		//	} else {
+		//		debugOutput('Got item: ' + JSON.stringify(data, null, 2));
+		//	}
+		//});// docClient.get
+		
+		//	Get data by expression
+		var params = {
+			TableName : "SnoreAlarm",
+			"KeyConditionExpression" : "clientid = :cID",
+			"ExpressionAttributeValues": {
+				":cID": clientId
+			}
+		};// params]
+		
+		docClient.query(params, function(err, data) {
+			if (err) {
+				debugOutput('Could not read item: ' + err);
+			} else {
+				//	Clear the userMain div to avoid duplicate output
+				document.getElementById("userMain").innerHTML = '';
+				debugOutput('Query succeeded');
+				debugOutput('Data:' + JSON.stringify(data, null, 2));
+				
+				data.Items.forEach(function(item) {
+					printToUser('<h4>' + item.date + '</h4>' + '<audio controls="true"><source src="https://s3.amazonaws.com/aws-iot-snorealarm/audio/' + item.payload.filename + '" /></audio>');
+						
+						item.payload.recordings.forEach(function(pItem){
+							
+							//if (pItem.duration == 1) {
+								//printToUser(' > Snore Detected @ ' + pItem.starttime + ' for ' + pItem.duration + ' second');
+								printToUser(' > Snore Detected @ ' + pItem.starttime);
+							//} else {
+							//	printToUser(' > Snore Detected @ ' + pItem.starttime + ' for ' + pItem.duration + ' seconds');
+							//}
+					})//item.payload.forEach
+				});//data.Items.forEach
+			}//if data from DB
+		});// docClient.get
+	
+    };// ReadDB
+	
+    </script>
+
+</body>
+</html>
+	
