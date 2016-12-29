@@ -1,3 +1,5 @@
+** This repo is currently WIP **
+
 # IoT-SnoreAlarm
 Repository for a prototype AWS IoT project
 
